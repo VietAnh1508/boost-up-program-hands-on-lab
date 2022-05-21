@@ -1,5 +1,7 @@
 package vn.elca.codebase.business;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -7,9 +9,12 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.security.SecurityProperties.Filter;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
@@ -19,6 +24,7 @@ import vn.elca.codebase.AbstractServiceTest;
 import vn.elca.codebase.RestITTestConfig;
 
 import java.nio.charset.Charset;
+import java.util.UUID;
 
 @Profile("unittest")
 @SpringBootTest(classes = {RestITTestConfig.class})
@@ -26,13 +32,16 @@ public abstract class AbstractRestITTest extends AbstractServiceTest {
     protected MockMvc mvc;
     @Autowired
     private WebApplicationContext webApplicationContext;
+
     @Autowired
     @Qualifier("objectMapperTest")
     private ObjectMapper objectMapper;
     
     @Before
     public void onBeforeTest() {
-        mvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
+        mvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
+                .apply(SecurityMockMvcConfigurers.springSecurity())
+                .build();
     }
     
     protected <T> T mapFromJson(String json, Class<T> clazz, boolean ensureNotNull) {
@@ -50,17 +59,23 @@ public abstract class AbstractRestITTest extends AbstractServiceTest {
     }
     
     protected String sendGetRequest(String uri, int expectedHttpStatus) throws Exception {
-        MvcResult result = mvc.perform(MockMvcRequestBuilders.get(uri).accept(MediaType.APPLICATION_JSON_VALUE))
+        MvcResult result = mvc.perform(
+                MockMvcRequestBuilders.get(uri)
+                        .accept(MediaType.APPLICATION_JSON_VALUE)
+                        .header("Request-Id", UUID.randomUUID().toString())
+                )
                 .andReturn();
         Assert.assertEquals(expectedHttpStatus, result.getResponse().getStatus());
         return result.getResponse().getContentAsString();
     }
     
     protected String sendPostRequest(String uri, String requestContent, int expectedHttpStatus) throws Exception {
-        MvcResult result = mvc.perform(MockMvcRequestBuilders.post(uri)
+        MvcResult result = mvc.perform(
+                    MockMvcRequestBuilders.post(uri).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON_VALUE)
                 .content(requestContent)
-                .accept(MediaType.APPLICATION_JSON_VALUE))
+                .accept(MediaType.APPLICATION_JSON_VALUE)
+                .header("Request-Id", UUID.randomUUID()))
                 .andReturn();
         Assert.assertEquals(expectedHttpStatus, result.getResponse().getStatus());
         return result.getResponse().getContentAsString();

@@ -18,4 +18,5 @@ Problem:
 
 Question:
 1. Can you explain why the transaction rollback does not work ?
+   - org.springframework.jms.listener.AbstractPollingMessageListenerContainer.receiveAndExecute
 2. (Advance) How can you fix this problem ?
